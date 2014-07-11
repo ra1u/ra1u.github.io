@@ -14,7 +14,7 @@
 
 <script src=http://code.jquery.com/jquery-2.1.1.min.js></script>
 <script>
-   var pictures_names = ["jankovic.jpg","karl_erjavec.jpg","Katanec-500x332.jpg","KATARINAKRESAL-2000-2.jpg","kdosiupa20080211.jpg","logo.jpg","milan_kucan_small.jpg","misa-molk.jpg","nap_F24EU_golobic_gregor_be.1202161886.jpg","Obama_portrait_crop.jpg","popovic.jpg","sagadin.jpg","salehar-500x290.jpg","semolic_dusan28_ih.jpg","tema_bucar_france_display.jpg","uvodna.jpg","ZahovicZlatkoBig.jpg","26-jure-jankovic_2013.jpg","200px-Pece_saso2.jpg","480x290_novak-regent.jpg","600_Josip_Broz_Tito_0001.jpg","2006191.jpg","2024171.jpg","60331966.jpg","65062555_andrea-massi-1_show.jpg","1329732065_ministri - franc bogovic.jpg","alenka-bratusek.jpg","ANTE-MARKOVIC--007.jpg","artur.stern.jpg","CommonRes.jpg","damjanmurko.jpg","Dejan-Zidan.jpg","fa01f143dc24b82e6576caa0388ec602.jpg","gaspar-gaspar-misic_pl_12.08.13.jpg","Gregor_Virant.jpg","Img_00000501.jpg","Iran.jpg"];
+   var pictures_names = ["jankovic.jpg","karl_erjavec.jpg","Katanec-500x332.jpg","KATARINAKRESAL-2000-2.jpg","kdosiupa20080211.jpg","logo.jpg","milan_kucan_small.jpg","misa-molk.jpg","nap_F24EU_golobic_gregor_be.1202161886.jpg","popovic.jpg","sagadin.jpg","salehar-500x290.jpg","semolic_dusan28_ih.jpg","tema_bucar_france_display.jpg","uvodna.jpg","ZahovicZlatkoBig.jpg","26-jure-jankovic_2013.jpg","200px-Pece_saso2.jpg","480x290_novak-regent.jpg","600_Josip_Broz_Tito_0001.jpg","2006191.jpg","2024171.jpg","60331966.jpg","65062555_andrea-massi-1_show.jpg","bogovic.jpg","alenka-bratusek.jpg","ANTE-MARKOVIC--007.jpg","artur.stern.jpg","CommonRes.jpg","damjanmurko.jpg","Dejan-Zidan.jpg","gaspar-gaspar-misic_pl_12.08.13.jpg","Gregor_Virant.jpg","Img_00000501.jpg","Iran.jpg"];
    var pictures= pictures_names.map(function(p){return "small/"+p})
    var picindex=0;
    $(document).ready(function(){   
@@ -41,13 +41,18 @@
    }
    function roll()
    {
-       if(roll_delay < 1000)
+       if(roll_delay < 1300)
        {
            $("img").attr("src",pictures[Math.floor(Math.random()*pictures.length)]);
            roll_picindex++;
            roll_picindex = roll_picindex % pictures.length;
            setTimeout(roll,roll_delay);
            roll_delay *= 1.05;
+       }
+       else if(roll_delay < 2000)
+       {
+            setTimeout(roll,roll_delay);
+            roll_delay*=2; //
        }
        else
        {

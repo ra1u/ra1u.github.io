@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+</head>
+
+<body>
+    <img src="#">
+</body>
+
+<script src=http://code.jquery.com/jquery-2.1.1.min.js></script>
+<script>
+   var pictures = ["jankovic.jpg","karl_erjavec.jpg","Katanec-500x332.jpg","KATARINAKRESAL-2000-2.jpg","kdosiupa20080211.jpg","logo.jpg","milan_kucan_small.jpg","misa-molk.jpg","nap_F24EU_golobic_gregor_be.1202161886.jpg","Obama_portrait_crop.jpg","popovic.jpg","sagadin.jpg","salehar-500x290.jpg","semolic_dusan28_ih.jpg","tema_bucar_france_display.jpg","uvodna.jpg","ZahovicZlatkoBig.jpg","26-jure-jankovic_2013.jpg","200px-Pece_saso2.jpg","480x290_jj.jpg","480x290_novak-regent.jpg","600_Josip_Broz_Tito_0001.jpg","2006191.jpg","2024171.jpg","60331966.jpg","65062555_andrea-massi-1_show.jpg","1329732065_ministri - franc bogovic.jpg","alenka-bratusek.jpg","ANTE-MARKOVIC--007.jpg","artur.stern.jpg","CommonRes.jpg","damjanmurko.jpg","Dejan-Zidan.jpg","fa01f143dc24b82e6576caa0388ec602.jpg","gaspar-gaspar-misic_pl_12.08.13.jpg","Gregor_Virant.jpg","Img_00000501.jpg","Iran.jpg"];
+   var picindex=0;
+   $(document).ready(function(){   
+    //$("body").html("ho");
+    roll();
+   })
+   
+   var roll_picindex=0;
+   var roll_delay =100;
+   function roll()
+   {
+       if(roll_delay < 1000)
+       {
+           $("img").attr("src","small/"+pictures[roll_picindex]);
+           roll_picindex++;
+           roll_picindex = roll_picindex % pictures.length;
+           setTimeout(roll,roll_delay);
+           roll_delay *= 1.05;
+       }
+       else
+       {
+           $("img").attr("src","small/"+"delo-janez_jansa_ds_display.jpg");
+       }
+   }
+   
+   
+   
+</script>
+
+</html>

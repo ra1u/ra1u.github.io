@@ -5,7 +5,8 @@
 </head>
 
 <body>
-    <img src="#">
+<img><br>
+<button onclick="startroll()"></button>
 </body>
 
 <script src=http://code.jquery.com/jquery-2.1.1.min.js></script>
@@ -14,7 +15,6 @@
    var picindex=0;
    $(document).ready(function(){   
     preloadImages(pictures);
-    roll();
    })
    
    function preloadImages(array) {
@@ -30,6 +30,11 @@
    
    var roll_picindex=0;
    var roll_delay =100;
+   function startroll()
+   {
+    roll_delay=100;
+    roll();
+   }
    function roll()
    {
        if(roll_delay < 1000)

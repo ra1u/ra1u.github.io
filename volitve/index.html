@@ -2,9 +2,8 @@
 
 <html>
 <head>
-    <script src=http://code.jquery.com/jquery-2.1.1.min.js></script>
     <script>
-   var pictures_names = ["Katanec-500x332.jpg","KATARINAKRESAL-2000-2.jpg","kdosiupa20080211.jpg","logo.jpg","milan_kucan_small.jpg","misa-molk.jpg","nap_F24EU_golobic_gregor_be.1202161886.jpg","popovic.jpg","sagadin.jpg","semolic_dusan28_ih.jpg","tema_bucar_france_display.jpg","uvodna.jpg","ZahovicZlatkoBig.jpg","26-jure-jankovic_2013.jpg","200px-Pece_saso2.jpg","480x290_novak-regent.jpg","600_Josip_Broz_Tito_0001.jpg","2006191.jpg","2024171.jpg","60331966.jpg","65062555_andrea-massi-1_show.jpg","ANTE-MARKOVIC--007.jpg","artur.stern.jpg","CommonRes.jpg","damjanmurko.jpg","gaspar-gaspar-misic_pl_12.08.13.jpg","Gregor_Virant.jpg","Img_00000501.jpg","Iran.jpg","rode.jpg"];
+   var pictures_names = ["delo-janez_jansa_ds_display.jpg","Katanec-500x332.jpg","KATARINAKRESAL-2000-2.jpg","kdosiupa20080211.jpg","logo.jpg","milan_kucan_small.jpg","misa-molk.jpg","nap_F24EU_golobic_gregor_be.1202161886.jpg","popovic.jpg","sagadin.jpg","semolic_dusan28_ih.jpg","tema_bucar_france_display.jpg","uvodna.jpg","ZahovicZlatkoBig.jpg","26-jure-jankovic_2013.jpg","200px-Pece_saso2.jpg","480x290_novak-regent.jpg","600_Josip_Broz_Tito_0001.jpg","2006191.jpg","2024171.jpg","60331966.jpg","65062555_andrea-massi-1_show.jpg","ANTE-MARKOVIC--007.jpg","artur.stern.jpg","CommonRes.jpg","damjanmurko.jpg","gaspar-gaspar-misic_pl_12.08.13.jpg","Gregor_Virant.jpg","Img_00000501.jpg","Iran.jpg","rode.jpg"];
    var picmap=function(p){return "pic/"+p}
    var pictures= pictures_names.map(picmap)
    var picindex=0;
@@ -24,10 +23,12 @@
     }
    
    var roll_delay =100;
+   var vt;
    function startroll()
    {
+    clearTimeout(vt);			
     roll_delay=100;
-    roll();
+    roll();			
    }
    function roll()
    {
@@ -35,19 +36,19 @@
            do
            {
               var picindex =  Math.floor(Math.random()*pictures.length);
-           } while(picindex == this.prev)
+           } while( !picindex || picindex == this.prev)
            this.prev = picindex;
-           $("img").attr("src",pictures[picindex]);
-           setTimeout(roll,roll_delay);
+           document.querySelector("img").src = pictures[picindex];
+           vt = setTimeout(roll,roll_delay);
            roll_delay *= 1.05;
        }
        else if(roll_delay < 2000) {
-            setTimeout(roll,roll_delay);
+            vt = setTimeout(roll,roll_delay);
             roll_delay*=2; 
        }
        else  {
-           //no shit sherlock
-           $("img").attr("src",picmap("delo-janez_jansa_ds_display.jpg"));
+	   picindex = Math.floor(Math.random()); 	    
+           ocument.querySelector("img").src = pictures[picindex];
        }
    }
    

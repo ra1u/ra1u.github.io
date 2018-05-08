@@ -26,6 +26,7 @@
    var vt;
    function startroll()
    {
+    document.querySelector("body").bgColor = "#FFFFFF";		
     clearTimeout(vt);			
     roll_delay=100;
     roll();			
@@ -48,10 +49,22 @@
        }
        else  {
 	   picindex = Math.floor(Math.random()); 	    
-           ocument.querySelector("img").src = pictures[picindex];
-       }
+           document.querySelector("img").src = pictures[picindex];
+	   blink();		    
+	}
    }
-   
+			    
+   			    
+  function blink() {
+    var letters = '0123456789ABCDEF';
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    document.querySelector("body").bgColor = color;
+    vt = setTimeout(blink,1000);
+}			    
+			    
 </script>
 </head>
 

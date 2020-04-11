@@ -7,7 +7,7 @@
       linear
     </h3>
     <div>
-        <input type="range" min="10" max="10000" style="width:90%;" value="0" oninput="linear(this.value)" onchange="linear(this.value)">
+        <input type="range" min="10" max="100000" style="width:90%;" value="1" oninput="linear(this.value)" onchange="linear(this.value)">
     </div>
     <div id="linear">
       10
@@ -17,7 +17,7 @@
       log
     </h3>
     <div>
-        <input type="range" min="10" max="10000" style="width:90%;" value="0" oninput="logaritmic(this.value)" onchange="logaritmic(this.value)">
+        <input type="range" min="1" max="1000" style="width:90%;" value="1" oninput="logaritmic(this.value)" onchange="logaritmic(this.value)">
     </div>
     <div id="logaritmic">
       10
@@ -27,8 +27,8 @@
             document.getElementById("linear").innerHTML = val;
         }
        function logaritmic(val) {
-            var low = 10.0;
-            var high = 10000.0;
+            var low = 1.0;
+            var high = 10.0;
             var p = parseFloat(val) / high;
             var v = low * Math.exp(p*Math.log(high/low));
             document.getElementById("logaritmic").innerHTML = Math.round(v);

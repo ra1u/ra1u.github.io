@@ -47,9 +47,8 @@ const vsSource = `
       highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
       // positional
       highp vec4 posDirVec = normalize(pos);
-      highp float posLight = max(dot(transformedNormal.xyz, posDirVec.xyz),0.0);
-      
-      vLighting = 0.5 * ambientLight +  0.0 * directional +  0.5 * posLight;
+      highp float posLight = max(dot(transformedNormal.xyz, posDirVec.xyz),0.0);      
+      vLighting = 0.8 * ambientLight +  0.3 * directional +  0.4 * posLight;
     }
   `;
 
@@ -215,9 +214,9 @@ function initBuffers(gl) {
   // for each face.
 
   const faceColors = [
-    [0.0,  0.0,  1.0,  1.0],    // Front face: whiteb
-    [1.0,  0.0,  0.0,  1.0],    // Back face: red
-    [0.0,  1.0,  0.0,  1.0],    // Top face: green
+    [0.0,  0.5,  1.0,  1.0],    // blue
+    [1.0,  0.3,  0.0,  1.2],    // Back face: red
+    [0.5,  1.0,  0.0,  1.0],    // Top face: green
   ];
 
   // Convert the array of colors into a table for all the vertices.

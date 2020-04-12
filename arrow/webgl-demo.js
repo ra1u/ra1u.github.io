@@ -20,18 +20,36 @@ function main() {
 
   // Vertex shader program
 
-  const vsSource = `
+  // Vertex shader program
+
+const vsSource = `
     attribute vec4 aVertexPosition;
+    attribute vec3 aVertexNormal;
     attribute vec4 aVertexColor;
 
+    uniform mat4 uNormalMatrix;
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
 
+    varying highp vec3 vLighting;
     varying lowp vec4 vColor;
 
     void main(void) {
-      gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+      highp vec4 pos = uProjectionMatrix * uModelViewMatrix * aVertexPosition; 
+      gl_Position = pos;
+      // vTextureCoord = aTextureCoord;
       vColor = aVertexColor;
+      //// Apply lighting effect
+      highp vec3 ambientLight = normalize(vec3(1, 1, 1));
+      // directional
+      highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
+      highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
+      highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+      // positional
+      highp vec4 posDirVec = normalize(pos);
+      highp float posLight = max(dot(transformedNormal.xyz, posDirVec.xyz),0.0);
+      
+      vLighting = 0.5 * ambientLight +  0.0 * directional +  0.5 * posLight;
     }
   `;
 
@@ -39,9 +57,9 @@ function main() {
 
   const fsSource = `
     varying lowp vec4 vColor;
-
+    varying highp vec3 vLighting;
     void main(void) {
-      gl_FragColor = vColor;
+      gl_FragColor = vColor * vec4(vLighting,1);
     }
   `;
 
@@ -58,12 +76,15 @@ function main() {
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+	  modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
     },
-  };
+  };	
 
   // Here's where we call the routine that builds all the
   // objects we'll be drawing.
@@ -84,6 +105,25 @@ function main() {
   requestAnimationFrame(render);
 }
 
+// cross product
+function cross(x,y){
+	return [ x[1] * y[2] - y[1] * x[2],
+			 x[2] * y[0] - y[2] * x[0],
+			 x[0] * y[1] - y[0] * x[1]
+		   ];
+}
+
+// distance
+function dist(x){
+	return Math.sqrt(x.map(x => x* x).reduce((a,b) => a+b,0));
+}
+
+// return resized vector of distance == 1
+function normalize(y){
+	const k = 1/dist(y);
+	return y.map(x => x*k);
+}
+
 //
 // initBuffers
 //
@@ -102,30 +142,54 @@ function initBuffers(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
   // Now create an array of positions for the cube.
-  
-  pos = [];
-  var w = 0.1;
+  var pos = [];
+  var normals = [];	
+  const aw = 0.1; // arrow width
+  const ah = 1.0; // arrow height
+  const ap = 1.1; // point of arrow pointer	
   var sinx = 0.0;
-  var cosx = w;
-  angle = Math.PI * 2 / nedges;	
-  for(i	= 0; i < nedges; ++i){
-	  var p = [0.0,0.0,1.2,sinx,cosx,1.0];
+  var cosx = aw;
+  const angle = Math.PI * 2 / nedges;	
+  for(i = 0; i < nedges; ++i){
+	  //// top pointer
+	  // positions
+	  var p1 = [cosx,sinx,ah-ap];	// store angles for calculating normal
+	  var p = [0.0,0.0,ap,cosx,sinx,ah];
 	  var a = angle * (i+1);	
-	  sinx = Math.sin(a) * w;
-	  cosx = Math.cos(a) * w;	  	
-	  p = p.concat([sinx,cosx,1.0]);
+	  sinx = Math.sin(a) * aw;
+	  cosx = Math.cos(a) * aw;
+	  var p2 = [cosx,sinx,ah-ap]; // vector for calculating normal	
+	  p = p.concat([cosx,sinx,ah]);
 	  pos = pos.concat(p);
-	  // mirroed triangle
+	  // normals
+	  {
+		  const n = normalize(cross(p1,p2));
+		  normals = normals.concat(n,n,n); // 3 points
+	  }
+	  //// mirroed triangle
+	  // positions
 	  p[2] =  0.0;
 	  p[5] =  0.0;
 	  p[8] =  0.0
 	  pos = pos.concat(p);
-	  // side
+	  // normals
+	  {
+		  const n = [0.0,0.0,-1.0];
+	      normals = normals.concat(n,n,n); // 3 points
+      }
+	  //// side
+	  // positions
 	  var t = p.slice(3);
 	  t = t.concat(t);
 	  t[2]=1.0;
 	  t[5]=1.0;
-	  pos = pos.concat(t); 
+	  pos = pos.concat(t);
+	  // normals
+	  const ang = (i + 0.5) * angle;
+	  {
+	      const n = [Math.cos(ang),Math.sin(ang),0.0];
+		  normals = normals.concat(n,n,n,n); // 4 points
+	  }
   }
 
 
@@ -137,6 +201,16 @@ function initBuffers(gl) {
 
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
+
+  // Set up the normals for the vertices, so that we can compute lighting.
+
+  const normalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+  const vertexNormals = normals;
+  console.log(["normals",normals.length,"pos",pos.length]);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals),
+                gl.STATIC_DRAW);
+	
   // Now set up the colors for the faces. We'll use solid colors
   // for each face.
 
@@ -196,6 +270,7 @@ function initBuffers(gl) {
 
   return {
     position: positionBuffer,
+	normal: normalBuffer,
     color: colorBuffer,
     indices: indexBuffer,
   };
@@ -263,6 +338,11 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
              [1.0, 1.0, scaleZ]);  // scaling vector	
 	
 
+  // nomali matrix (lightning
+  const normalMatrix = mat4.create();
+  mat4.invert(normalMatrix, modelViewMatrix);
+  mat4.transpose(normalMatrix, normalMatrix);
+	
   // Tell WebGL how to pull out the positions from the position
   // buffer into the vertexPosition attribute
   {
@@ -283,6 +363,28 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
         programInfo.attribLocations.vertexPosition);
   }
 
+
+  // Tell WebGL how to pull out the normals from
+  // the normal buffer into the vertexNormal attribute.
+  {
+    const numComponents = 3;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+	
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
+    gl.vertexAttribPointer(
+        programInfo.attribLocations.vertexNormal,
+        numComponents,
+        type,
+        normalize,
+        stride,
+        offset);
+    gl.enableVertexAttribArray(
+        programInfo.attribLocations.vertexNormal);
+	
+  }
   // Tell WebGL how to pull out the colors from the color buffer
   // into the vertexColor attribute.
   {
@@ -311,7 +413,6 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
   gl.useProgram(programInfo.program);
 
   // Set the shader uniforms
-
   gl.uniformMatrix4fv(
       programInfo.uniformLocations.projectionMatrix,
       false,
@@ -320,6 +421,12 @@ function drawScene(gl, programInfo, buffers, deltaTime) {
       programInfo.uniformLocations.modelViewMatrix,
       false,
       modelViewMatrix);
+  
+  gl.uniformMatrix4fv(
+      programInfo.uniformLocations.normalMatrix,
+      false,
+      normalMatrix);
+	
 
   {
     const vertexCount = nedges * 3 * 2 * 2;

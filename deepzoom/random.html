@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="dygraphs/dist/dygraph.css">
+    <title>zoom</title>
+    <script type="text/javascript" src="dygraphs/dist/dygraph.js"></script>
+    <style type="text/css">
+    </style>
+  </head>
+  <body>
+    <div>
+    <h3>deep zoom</h3>
+    </div>
+    <div id="div_g" style="width:90%; height:400px;"></div>
+    <div id="div2">
+    <p> Points are generated as random walk
+       in range from Jan 2000 till now. <br>
+	   Please wait few seconds before all data is generated in browser. <br>
+    </p>
+    <form id="form">
+    <label for="lname">number of points</label>  <input type="number" id="formInput" value="10000000">  <input type="submit" value="Regenerate"> <br>
+    </form>
+    <h3>operations:</h3>
+	<p> zoom - drag mouse </p>
+	<p> pan - SHIFT + drag mouse </p>
+	<p> unzoom by 3x - doubleclick  </p>
+    <p>
+      <input type="button" value="Unzoom" onclick="unzoomGraphClick()">&nbsp;
+    </p>
+    <p> bring your <a href="csv.html">own data</a> </p>
+	<p> Visualised with <a href=http://dygraphs.com/>dygraphs</a> </p>
+    </div>
+    <script type="text/javascript">
+      var blockDrawDbg = true;
+
+      var booster;
+	  // aka wasm imported stuff
+	  var Module = {
+		onRuntimeInitialized : function() {
+			booster = Module;
+			main();
+		}
+	  };
+	  
+	  function restorePositioning(g) {
+		g.updateOptions({
+		  dateWindow: null,
+		  valueRange: null
+		});
+	  }
+
+      function newSizeSubmit(e){
+        var t = e;
+        e.preventDefault();
+        var sf = document.getElementById('formInput');
+        N = parseInt(sf.value);
+        generateData();
+      }
+
+      var g;
+      var ss;
+      var N = 10e6; // number of points 
+      function main(){
+        const data = [[0,[0,0,0]]];
+		g = new Dygraph(
+			  document.getElementById("div_g"),
+			  data , {
+				  // errorBars: true,
+				customBars : true,
+				zoomCallback: function(minDate, maxDate, yRange) {
+				  //showDimensions(minDate, maxDate, yRange);
+				},
+				drawCallback: function(g,init) {
+				},
+				newposCallback : function(g) {
+					return newposCallback(g);
+				},
+				interactionModel : {
+				  'mousedown' : mousedown,
+		          'mouseup': mouseup,  
+                  'mousemove' : mousemove,
+                  'dblclick' :  dblclick, 
+				}, 
+				          
+			  }
+		);
+		g.userdata = {
+			isZoom : false,
+			wasZoom : false,
+			isPan  : false,
+			direction : 1
+		}; 
+        ss = new booster.StorageF32();
+        generateData();
+	  }      
+
+      document.getElementById('form').addEventListener('submit', newSizeSubmit);
+
+      function mousedown(event, g, context) {
+		context.initializeMouseDown(event, g, context);
+		if (event.altKey || event.shiftKey) {
+			Dygraph.startPan(event, g, context);
+		} else {
+			g.userdata.isZoom = true;
+		  	Dygraph.startZoom(event, g, context);
+		}
+	  }
+
+	  function mousemove(event, g, context) {
+		if (context.isPanning) {
+		  Dygraph.movePan(event, g, context);
+		} else if (context.isZooming) {
+		  Dygraph.moveZoom(event, g, context);
+		}
+	  }
+
+	  function mouseup(event, g, context) {
+		if (context.isPanning) {
+		  Dygraph.endPan(event, g, context);
+		} else if (context.isZooming) {
+		  g.userdata.wasZoom = true;
+		  g.userdata.direction = context.dragDirection;	
+		  Dygraph.endZoom(event, g, context);
+		  g.userdata.isZoom = false;	
+		}
+	  }
+
+      function dblclick(event, g, context) {
+	       // unzoom by approx factor 3
+		   const xr = g.xAxisRange();
+		   const yr = g.yAxisRange();
+		   const beg = Math.round(date2x(xr[0]));
+		   const end = Math.round(date2x(xr[1]));
+		   const ssbeg = ss.begin;
+		   const ssend = ss.end;
+		   const w = end - beg ;
+		   const left = Math.max(beg-w,ssbeg);
+		   const right = Math.min(end+w,ssend);
+		   const r1 = Math.min(right+1,ssend);  
+		   const step = Math.max(1,Math.round((r1 - left) / resolution()));
+		   const vec = ss.get(left,r1,step);
+		   const data = fromSSVec(vec,left,step);
+		   if((left == ssbeg) && (right == ssend)){
+			  // enable live diplay of generated data
+              g.userdata.wasZoom = false;
+		   }
+           g.updateOptions({
+		 	   file : data,
+			   dateWindow: [x2date(left), x2date(right)]
+		   }); 
+	  }
+
+      function formatDate(d) {
+          return d.toDateString();
+      }
+
+       function newposCallback(g,ctx){
+           var ud = g.userdata;
+		   if(ud.isZoom){
+	         if(ud.direction == 2){
+			   // just let dygraph redaw if
+			   // zoom is in direction y	 
+               return true;
+		     }
+		   }
+           //updateDim();
+		   const xr = g.xAxisRange();
+		   const yr = g.yAxisRange();
+		   const beg = Math.max(Math.round(date2x(xr[0])-1),ss.begin);
+		   const end = Math.min(Math.round(date2x(xr[1])+2),ss.end);
+		   const step = Math.max(1,Math.round((end - beg) / resolution())); 
+		   const vec = ss.get(beg,end,step);
+		   const data = fromSSVec(vec,beg,step); 
+		   g.updateOptions({ 
+			  file : data,
+			  dateWindow: xr
+		   });
+		   return false;                  
+		 
+       }
+
+       function resolution(){
+         return document.getElementById("div_g").offsetWidth
+       }
+        
+
+      function fromSSVec(vec,i0=0,step=1){
+	     var r = []
+         const s = vec.size()
+         for(var i = 0; i < s; ++i){
+		   const e = vec.get(i);
+		   d = i0*1000;
+		   r.push([x2date(i0),[e.min,e.average,e.max]]);
+           i0 += step;
+         }
+         return r;
+      }
+
+      const jan2000 = 946684800e3
+      const dateNow = Date.now(); 
+      var tick  =  (dateNow - jan2000)/N;
+      var tickinv = 1/tick;
+      function x2date(i){
+         const d =  new Date(i*tick + jan2000);
+         return d;
+      }
+
+      function date2x(i){
+	      const v = i.valueOf();
+		  return (v - jan2000) * tickinv;
+      }
+      
+      var generator_run = 0;
+      async function generateData(){
+        generator_run += 1;
+        const gr = generator_run; 
+		let y = 0;
+        tick  =  (dateNow - jan2000)/N;
+        tickinv = 1/tick;
+        ss.clear();
+		ss.capacity = 1e10;
+        g.userdata.wasZoom = false;
+        g.updateOptions({
+         file : [[x2date(0),[0,0,0]]],
+         dateWindow: [x2date(0), x2date(1)]
+        });
+        var n = 0;
+        var i0 = 0;
+        var gen_size = 1e6;
+        var pt = Date.now(); 
+        while(n < N){   
+          if(generator_run != gr){
+            // check if other generateData is running
+            return;
+          }
+          const s = Math.min(gen_size,N-n);
+          i0 = ss.gen_random(s,i0);
+          n += s;
+          if(!g.userdata.wasZoom){
+            unzoomGraph(g);
+          }
+          await new Promise(r => setTimeout(r, 1)); // dummy sleep
+          const now = Date.now();
+          const diff = now - pt;
+          gen_size = Math.round(gen_size * 250 / diff);
+          pt = now;
+        }
+        unzoomGraph(g);
+      }
+
+      function unzoomGraphClick(){
+          g.userdata.wasZoom = false;
+		  unzoomGraph(g);
+      }
+
+      function unzoomGraph(g) {
+        const beg = ss.begin;
+		const end = ss.end;
+		const step = (end - beg) / resolution();  
+		const vec = ss.get(beg,end,step);  
+        const data = fromSSVec(vec,beg,step);
+         g.updateOptions({ 
+                     file : data,
+                     dateWindow: [x2date(beg), x2date(end)]
+        });
+      }
+    </script>
+    <script type="text/javascript" src="stream_strorage.js"></script>
+  </body>
+</html>

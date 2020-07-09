@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="dygraphs/dist/dygraph.css">
+    <title>zoom</title>
+    <script type="text/javascript" src="dygraphs/dist/dygraph.js"></script>
+  </head>
+  <body>
+    <h3>deep zoom graph</h3>
+    <div id="div_g" style="width:100%; height:400px;"></div>
+    <input id="file"  type="file">
+    <p> Select file of whitespace sperated floats. <br>
+         For example one float per line. <br> 
+         Optimised for large dataset (300 M points on desktop) 
+    </p>
+
+    <h3>operations:</h3>
+	<p> zoom - drag mouse </p>
+	<p> pan - SHIFT + mouse move </p>
+	<p> unzoom by 3x - doubleclick  </p>
+    <p>
+      <input type="button" value="Unzoom" onclick="unzoomGraphClick()">&nbsp;
+    </p>
+    <p> use <a href="random.html">random data generator</a> </p>
+	<p> Visualised with <a href=http://dygraphs.com/>dygraphs</a> </p>
+
+
+    <script type="text/javascript">
+      var blockDrawDbg = true;
+
+      var booster;
+	  // aka wasm imported stuff
+	  var Module = {
+		onRuntimeInitialized : function() {
+			booster = Module;
+			main();
+		}
+	  };
+	  
+      var g;
+      var ss;
+      function main(){
+        const data = [[0,[0,0,0]]];
+		g = new Dygraph(
+			  document.getElementById("div_g"),
+			  data , {
+				customBars : true,
+				newposCallback : function(g) {
+					return newposCallback(g);
+				},
+				  
+				interactionModel : {
+				  'mousedown' : mousedown,
+		          'mouseup': mouseup,  
+                  'mousemove' : mousemove,
+                  'dblclick' :  dblclick, 
+				}, 
+				          
+			  }
+		);
+		ss = new booster.StorageF32();
+		g.userdata = {
+			isZoom : false,
+			wasZoom : false,
+			isPan  : false,
+			direction : 1
+		}; 
+
+        document.querySelector("#file").onchange = onFileInput;
+        document.querySelector("#file").onclick = onFileTouch;
+	  }      
+
+      function mousedown(event, g, context) {
+		context.initializeMouseDown(event, g, context);
+		if (event.altKey || event.shiftKey) {
+			Dygraph.startPan(event, g, context);
+		} else {
+			g.userdata.isZoom = true;
+		  	Dygraph.startZoom(event, g, context);
+		}
+	  }
+
+	  function mousemove(event, g, context) {
+		if (context.isPanning) {
+		  Dygraph.movePan(event, g, context);
+		} else if (context.isZooming) {
+		  Dygraph.moveZoom(event, g, context);
+		}
+	  }
+
+	  function mouseup(event, g, context) {
+		if (context.isPanning) {
+		  Dygraph.endPan(event, g, context);
+		} else if (context.isZooming) {
+		  g.userdata.wasZoom = true;
+		  g.userdata.direction = context.dragDirection;	
+		  Dygraph.endZoom(event, g, context);
+		  g.userdata.isZoom = false;	
+		}
+	  }
+
+      function dblclick(event, g, context) {
+	       // unzoom by approx factor 3
+		   const xr = g.xAxisRange();
+		   const yr = g.yAxisRange();
+		   const beg = xr[0];
+		   const end = xr[1];
+		   const ssbeg = ss.begin;
+		   const ssend = ss.end;
+		   const w = end - beg;
+		   
+		   const left = Math.max(Math.round(beg-w),ssbeg);
+		   const right = Math.min(Math.round(end+w+1),ssend);
+           const r1 = Math.min(right+1,ssend);  
+		   const step = Math.max(1,Math.round((r1 - left) / resolution()));
+		   const vec = ss.get(left,r1,step);
+		   const data = fromSSVec(vec,left,step);
+		   if((left == ssbeg) && (right == ssend)){
+			  // enable live diplay of generated data
+              g.userdata.wasZoom = false;
+		   }
+           g.updateOptions({
+		 	   file : data,
+			   dateWindow: [left, right]
+		   }); 
+	  }
+
+       function newposCallback(g,ctx){
+           var ud = g.userdata;
+		   if(ud.isZoom){
+	         if(ud.direction == 2){
+			   // just let dygraph redaw if
+			   // zoom is in direction y	 
+               return true;
+		     }
+		   }
+           //updateDim();
+		   const xr = g.xAxisRange();
+		   const yr = g.yAxisRange();
+		   const beg = Math.max(xr[0],ss.begin);
+		   const end = Math.min(Math.round(xr[1]+2),ss.end);
+		   const step = Math.max(1,Math.round((end - beg) / resolution())); 
+		   const vec = ss.get(beg,end,step);
+		   const data = fromSSVec(vec,beg,step); 
+		   g.updateOptions({ 
+			  file : data,
+			  dateWindow: xr
+		   });
+		   return false;                  
+		 
+      }
+
+	  function resolution(){
+         return document.getElementById("div_g").offsetWidth
+      }
+
+      function fromSSVec(vec,i0=0,step=1){
+	     var r = []
+         const s = vec.size()
+         for(var i = 0; i < s; ++i){
+		   const e = vec.get(i);
+		   r.push([i0,[e.min,e.average,e.max]]);
+           i0 += step;
+         }
+         return r;
+      }
+      
+	  var generator_run = 0;
+	  async function onFileInput(){
+          g.userdata.wasZoom = false;
+		  generator_run += 1;
+		  const gr = generator_run;
+		  var fileInput = document.querySelector("#file");
+          var files = fileInput.files;
+		  if(files.length == 0){
+              return;
+		  }
+		  var file = files[0];
+		  const reader = file.stream().getReader();
+		  const td = new TextDecoder("utf-8");
+		  ss.clear();
+		  ss.capacity = 1e10;
+          var rxrem = "";
+          var dsp_step = 1e4;
+          var dsp_at = dsp_step;
+          var consumed = 0;
+          var pt = Date.now(); 
+		  while(1){
+            var {done,value} = await reader.read();
+			if(done){
+              // TODO
+              break;
+			}
+            // append rx from file to rxrem
+            const txt = rxrem.concat(td.decode(value)); 
+            const arr =  txt.split(/\s+/); 
+            rxrem = arr.pop(); // last chunk can be partial
+            var i = 0;
+            while(i < arr.length){
+			  if(generator_run != gr){
+                return; // there is new drawing going on
+              }
+              var ssin = ss.input_data; 
+              const arrrem = arr.length - i;  
+              const n = Math.min(arrrem,ssin.length);
+              for(j=0;j<n;++j){
+                ssin[j] = arr[i];
+                i += 1;
+              }
+              ss.input_commit(n);
+            }
+            consumed += arr.length;
+            if(consumed > dsp_at){
+			  if(!g.userdata.wasZoom){
+				unzoomGraph(g); // show data  	   
+			  }
+              await new Promise(r => setTimeout(r, 0));
+              const now = Date.now();
+              const diff = now - pt;
+              pt = now;  
+              dsp_step = Math.round(dsp_step * 250 / diff); // 4 times per s
+			  dsp_at += dsp_step;
+			}	
+	      }
+          unzoomGraph(g); 
+	  }
+    
+      function onFileTouch(){
+        document.querySelector("#file").value = "";
+      }
+
+      function unzoomGraphClick(){
+          g.userdata.wasZoom = false;
+		  unzoomGraph(g);
+      }
+
+      function unzoomGraph(g) {
+        const beg = ss.begin;
+		const end = ss.end;
+	    const step = (end - beg) / resolution();  
+		const vec = ss.get(beg,end,step);  
+        const data = fromSSVec(vec,beg,step);
+         g.updateOptions({ 
+                     file : data,
+                     dateWindow: [beg, end]
+        });
+      }
+    </script>
+    <script type="text/javascript" src="stream_strorage.js"></script>
+  </body>
+</html>
